@@ -40,6 +40,175 @@ dependencies {
     modImplementation "maven.modrinth:hephaestus:${project.hephaestus_version}"
 }
 
+configurations {
+    headlessMcMods {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
+}
+
+dependencies {
+    headlessMcMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    headlessMcMods "maven.modrinth:hephaestus:${project.hephaestus_version}"
+}
+
+def headlessMcVersion = providers.gradleProperty("headlessmc_version").orElse("2.9.0")
+def mcRuntimeTestVersion = providers.gradleProperty("mc_runtime_test_version").orElse("4.4.0")
+def headlessMcDir = layout.buildDirectory.dir("headlessmc")
+def headlessMcDownloadsDir = headlessMcDir.map { it.dir("downloads") }
+def headlessMcHomeDir = headlessMcDir.map { it.dir("home") }
+def headlessMcMcDir = headlessMcHomeDir.map { it.dir(".minecraft") }
+def headlessMcRunDir = headlessMcDir.map { it.dir("run") }
+def headlessMcModsDir = headlessMcRunDir.map { it.dir("mods") }
+def headlessMcVersionJson = headlessMcMcDir.map { it.file("versions/${project.minecraft_version}/${project.minecraft_version}.json") }
+def headlessMcFabricJson = headlessMcMcDir.map { it.file("versions/fabric-loader-${project.loader_version}-${project.minecraft_version}/fabric-loader-${project.loader_version}-${project.minecraft_version}.json") }
+def headlessMcLauncher = headlessMcDir.zip(headlessMcVersion) { dir, version ->
+    dir.file("headlessmc-launcher-${version}.jar")
+}
+def mcRuntimeTestJar = headlessMcDownloadsDir.zip(mcRuntimeTestVersion) { dir, version ->
+    dir.file("mc-runtime-test-${project.minecraft_version}-${version}-fabric-release.jar")
+}
+def javaBin = new File(System.getProperty("java.home"), "bin/java").absolutePath
+
+def registerDownloadTask = { String taskName, Provider<String> url, Provider<RegularFile> output ->
+    tasks.register(taskName) {
+        inputs.property("url", url)
+        outputs.file(output)
+        onlyIf {
+            !output.get().asFile.isFile()
+        }
+
+        doLast {
+            def outputFile = output.get().asFile
+            outputFile.parentFile.mkdirs()
+            def tempFile = new File(outputFile.parentFile, "${outputFile.name}.tmp")
+            tempFile.delete()
+            exec {
+                commandLine "curl", "-fL", "--retry", "3", "--retry-delay", "2",
+                    "-o", tempFile.absolutePath, url.get()
+            }
+            if (tempFile.length() == 0L) {
+                tempFile.delete()
+                throw new GradleException("Downloaded empty file from ${url.get()}")
+            }
+            java.nio.file.Files.move(
+                tempFile.toPath(),
+                outputFile.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE
+            )
+        }
+    }
+}
+
+def downloadHeadlessMc = registerDownloadTask(
+    "downloadHeadlessMc",
+    headlessMcVersion.map { "https://github.com/3arthqu4ke/headlessmc/releases/download/${it}/headlessmc-launcher-${it}.jar" },
+    headlessMcLauncher
+)
+def downloadMcRuntimeTest = registerDownloadTask(
+    "downloadMcRuntimeTest",
+    mcRuntimeTestVersion.map { "https://github.com/headlesshq/mc-runtime-test/releases/download/${it}/mc-runtime-test-${project.minecraft_version}-${it}-fabric-release.jar" },
+    mcRuntimeTestJar
+)
+
+tasks.register("prepareHeadlessMc") {
+    dependsOn downloadHeadlessMc
+
+    outputs.file(headlessMcDir.map { it.file("HeadlessMC/config.properties") })
+    outputs.file(headlessMcRunDir.map { it.file("options.txt") })
+
+    doLast {
+        def runDir = headlessMcRunDir.get().asFile
+        def homeDir = headlessMcDir.get().dir("HeadlessMC").asFile
+        homeDir.mkdirs()
+        runDir.mkdirs()
+
+        new File(homeDir, "config.properties").text = [
+            "hmc.mcdir=${headlessMcMcDir.get().asFile.absolutePath.replace("\\", "\\\\")}",
+            "hmc.java.versions=${javaBin.replace("\\", "\\\\")}",
+            "hmc.gamedir=${runDir.absolutePath.replace("\\", "\\\\")}",
+            "hmc.offline=true",
+            "hmc.java.use.current=true",
+            "hmc.java.require.exact=false",
+            "hmc.auto.download.java=false",
+            "hmc.rethrow.launch.exceptions=true",
+            "hmc.exit.on.failed.command=true",
+            "hmc.assets.dummy=true",
+            ""
+        ].join(System.lineSeparator())
+
+        new File(runDir, "options.txt").text = [
+            "onboardAccessibility:false",
+            "pauseOnLostFocus:false",
+            ""
+        ].join(System.lineSeparator())
+    }
+}
+
+tasks.register("stageHeadlessMcMods", Sync) {
+    dependsOn tasks.named("remapJar"), downloadMcRuntimeTest
+
+    from(tasks.named("remapJar").flatMap { it.archiveFile })
+    from(configurations.headlessMcMods)
+    from(mcRuntimeTestJar)
+    into(headlessMcModsDir)
+}
+
+tasks.register("installHeadlessMcFabric") {
+    dependsOn tasks.named("prepareHeadlessMc")
+
+    inputs.property("minecraft_version", project.minecraft_version)
+    inputs.property("loader_version", project.loader_version)
+    inputs.property("java_release", java.targetCompatibility.majorVersion)
+    outputs.file(headlessMcFabricJson)
+
+    doLast {
+        def dir = headlessMcDir.get().asFile
+        def homeDir = headlessMcHomeDir.get().asFile
+        def mcVersionJson = headlessMcVersionJson.get().asFile
+        def fabricVersionJson = headlessMcFabricJson.get().asFile
+        def launcher = headlessMcLauncher.get().asFile
+        homeDir.mkdirs()
+        if (!mcVersionJson.isFile()) {
+            exec {
+                workingDir dir
+                commandLine javaBin, "-Duser.home=${homeDir.absolutePath}", "-jar", launcher.absolutePath, "--command", "download", project.minecraft_version
+            }
+        }
+        if (fabricVersionJson.isFile()) {
+            return
+        }
+        exec {
+            workingDir dir
+            commandLine javaBin, "-Duser.home=${homeDir.absolutePath}", "-jar", launcher.absolutePath,
+                "--command", "fabric", project.minecraft_version,
+                "--java", java.targetCompatibility.majorVersion,
+                "--uid", project.loader_version
+        }
+    }
+}
+
+tasks.register("headlessMcTest", Exec) {
+    group = "verification"
+    description = "Starts Minecraft with HeadlessMC and verifies that More Apple loads."
+
+    dependsOn tasks.named("installHeadlessMcFabric"), tasks.named("stageHeadlessMcMods")
+
+    workingDir headlessMcDir
+    commandLine "xvfb-run", "-a", javaBin,
+        "-Duser.home=${headlessMcHomeDir.get().asFile.absolutePath}",
+        "-Dhmc.check.xvfb=true",
+        "-jar", headlessMcLauncher.get().asFile.absolutePath,
+        "--command", "launch", ".*fabric.*", "-regex",
+        "--jvm", "-Djava.awt.headless=true"
+}
+
+tasks.named("check") {
+    dependsOn tasks.named("headlessMcTest")
+}
+
 processResources {
     inputs.property "version", project.version
 
