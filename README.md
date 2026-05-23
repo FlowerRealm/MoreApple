@@ -22,10 +22,16 @@ More Apple 是一个 Minecraft Fabric mod。当前项目是基础底座，面向
 java -version
 ```
 
-构建：
+构建并运行默认测试：
 
 ```bash
 ./gradlew clean build --no-daemon
+```
+
+默认测试会通过 HeadlessMC 启动一个隔离的 Minecraft `1.20.1` Fabric 客户端，并加载 More Apple、Fabric API、Hephaestus 与 mc-runtime-test。启动成功时日志里会出现：
+
+```text
+More Apple initialized
 ```
 
 构建完成后，mod 文件在：
