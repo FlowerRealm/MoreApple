@@ -28,6 +28,20 @@ java -version
 ./gradlew clean build --no-daemon
 ```
 
+本地开发会复用用户级缓存，避免多个 worktree 重复下载 Gradle 依赖、HeadlessMC、Minecraft 运行时和测试 jar。More Apple 的开发缓存默认位于：
+
+```text
+${XDG_CACHE_HOME:-~/.cache}/moreapple
+```
+
+如果需要指定其它缓存目录：
+
+```bash
+./gradlew build --no-daemon -Pmoreapple.devCacheDir=/path/to/moreapple-cache
+```
+
+`clean` 只清理当前 worktree 的 `build/`，不会删除用户级开发缓存。需要彻底清理时，手动删除上面的缓存目录。
+
 默认测试会通过 HeadlessMC 启动一个隔离的 Minecraft `1.20.1` Fabric 客户端，并加载 More Apple、Fabric API、Hephaestus 与 mc-runtime-test。启动成功时日志里会出现：
 
 ```text
