@@ -34,6 +34,8 @@ java -version
 More Apple initialized
 ```
 
+<!-- cache probe -->
+
 构建完成后，mod 文件在：
 
 ```text
