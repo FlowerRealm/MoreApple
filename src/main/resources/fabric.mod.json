@@ -8,6 +8,7 @@
     "flowerrealm"
   ],
   "contact": {},
+  "icon": "assets/moreapple/icon.png",
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
