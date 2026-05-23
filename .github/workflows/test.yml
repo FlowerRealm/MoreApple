@@ -2,7 +2,12 @@ name: Test
 
 on:
   push:
+    branches:
+      - master
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -10,8 +15,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -19,8 +22,35 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Restore HeadlessMC runtime cache
+        id: headlessmc-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/headlessmc/headlessmc-launcher-*.jar
+            build/headlessmc/downloads
+            build/headlessmc/home/.minecraft
+          key: headlessmc-${{ runner.os }}-${{ hashFiles('build.gradle', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            headlessmc-${{ runner.os }}-
+
       - name: Install runtime test display
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
       - name: Build and test
         run: ./gradlew build --no-daemon
+
+      - name: Save HeadlessMC runtime cache
+        if: github.ref == 'refs/heads/master' && steps.headlessmc-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/headlessmc/headlessmc-launcher-*.jar
+            build/headlessmc/downloads
+            build/headlessmc/home/.minecraft
+          key: ${{ steps.headlessmc-cache.outputs.cache-primary-key }}
