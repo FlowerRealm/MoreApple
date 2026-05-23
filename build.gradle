@@ -56,48 +56,67 @@ dependencies {
 def headlessMcVersion = providers.gradleProperty("headlessmc_version").orElse("2.9.0")
 def mcRuntimeTestVersion = providers.gradleProperty("mc_runtime_test_version").orElse("4.4.0")
 def headlessMcDir = layout.buildDirectory.dir("headlessmc")
-def headlessMcDownloadsDir = headlessMcDir.map { it.dir("downloads") }
-def headlessMcHomeDir = headlessMcDir.map { it.dir("home") }
-def headlessMcMcDir = headlessMcHomeDir.map { it.dir(".minecraft") }
+def moreAppleDevCacheDir = providers.provider {
+    def configured = providers.gradleProperty("moreapple.devCacheDir").orNull
+    if (configured != null && !configured.trim().isEmpty()) {
+        return file(configured)
+    }
+
+    def xdgCacheHome = providers.environmentVariable("XDG_CACHE_HOME").orNull
+    if (xdgCacheHome != null && !xdgCacheHome.trim().isEmpty()) {
+        return new File(xdgCacheHome, "moreapple")
+    }
+
+    return new File(System.getProperty("user.home"), ".cache/moreapple")
+}
+def headlessMcCacheDir = moreAppleDevCacheDir.map { new File(it, "headlessmc") }
+def headlessMcDownloadsDir = headlessMcCacheDir.map { new File(it, "downloads") }
+def headlessMcHomeDir = headlessMcCacheDir.map { new File(it, "home") }
+def headlessMcMcDir = headlessMcHomeDir.map { new File(it, ".minecraft") }
+def headlessMcConfigDir = headlessMcDir.map { it.dir("HeadlessMC") }
 def headlessMcRunDir = headlessMcDir.map { it.dir("run") }
 def headlessMcModsDir = headlessMcRunDir.map { it.dir("mods") }
-def headlessMcVersionJson = headlessMcMcDir.map { it.file("versions/${project.minecraft_version}/${project.minecraft_version}.json") }
-def headlessMcFabricJson = headlessMcMcDir.map { it.file("versions/fabric-loader-${project.loader_version}-${project.minecraft_version}/fabric-loader-${project.loader_version}-${project.minecraft_version}.json") }
-def headlessMcLauncher = headlessMcDir.zip(headlessMcVersion) { dir, version ->
-    dir.file("headlessmc-launcher-${version}.jar")
+def headlessMcVersionJson = headlessMcMcDir.map { new File(it, "versions/${project.minecraft_version}/${project.minecraft_version}.json") }
+def headlessMcFabricJson = headlessMcMcDir.map { new File(it, "versions/fabric-loader-${project.loader_version}-${project.minecraft_version}/fabric-loader-${project.loader_version}-${project.minecraft_version}.json") }
+def headlessMcLauncher = headlessMcCacheDir.zip(headlessMcVersion) { dir, version ->
+    new File(dir, "headlessmc-launcher-${version}.jar")
 }
 def mcRuntimeTestJar = headlessMcDownloadsDir.zip(mcRuntimeTestVersion) { dir, version ->
-    dir.file("mc-runtime-test-${project.minecraft_version}-${version}-fabric-release.jar")
+    new File(dir, "mc-runtime-test-${project.minecraft_version}-${version}-fabric-release.jar")
 }
 def javaBin = new File(System.getProperty("java.home"), "bin/java").absolutePath
 
-def registerDownloadTask = { String taskName, Provider<String> url, Provider<RegularFile> output ->
+def registerDownloadTask = { String taskName, Provider<String> url, Provider<File> output ->
     tasks.register(taskName) {
         inputs.property("url", url)
         outputs.file(output)
         onlyIf {
-            !output.get().asFile.isFile()
+            !output.get().isFile()
         }
 
         doLast {
-            def outputFile = output.get().asFile
+            def outputFile = output.get()
             outputFile.parentFile.mkdirs()
-            def tempFile = new File(outputFile.parentFile, "${outputFile.name}.tmp")
-            tempFile.delete()
-            exec {
-                commandLine "curl", "-fL", "--retry", "3", "--retry-delay", "2",
-                    "-o", tempFile.absolutePath, url.get()
+            def tempFile = File.createTempFile("${outputFile.name}.", ".tmp", outputFile.parentFile)
+            try {
+                exec {
+                    commandLine "curl", "-fL", "--retry", "3", "--retry-delay", "2",
+                        "-o", tempFile.absolutePath, url.get()
+                }
+                if (tempFile.length() == 0L) {
+                    throw new GradleException("Downloaded empty file from ${url.get()}")
+                }
+                java.nio.file.Files.move(
+                    tempFile.toPath(),
+                    outputFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE
+                )
+            } finally {
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
             }
-            if (tempFile.length() == 0L) {
-                tempFile.delete()
-                throw new GradleException("Downloaded empty file from ${url.get()}")
-            }
-            java.nio.file.Files.move(
-                tempFile.toPath(),
-                outputFile.toPath(),
-                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                java.nio.file.StandardCopyOption.ATOMIC_MOVE
-            )
         }
     }
 }
@@ -116,17 +135,19 @@ def downloadMcRuntimeTest = registerDownloadTask(
 tasks.register("prepareHeadlessMc") {
     dependsOn downloadHeadlessMc
 
-    outputs.file(headlessMcDir.map { it.file("HeadlessMC/config.properties") })
+    inputs.property("headless_mc_cache_dir", headlessMcCacheDir.map { it.absolutePath })
+    inputs.property("java_bin", javaBin)
+    outputs.file(headlessMcConfigDir.map { it.file("config.properties") })
     outputs.file(headlessMcRunDir.map { it.file("options.txt") })
 
     doLast {
         def runDir = headlessMcRunDir.get().asFile
-        def homeDir = headlessMcDir.get().dir("HeadlessMC").asFile
+        def homeDir = headlessMcConfigDir.get().asFile
         homeDir.mkdirs()
         runDir.mkdirs()
 
         new File(homeDir, "config.properties").text = [
-            "hmc.mcdir=${headlessMcMcDir.get().asFile.absolutePath.replace("\\", "\\\\")}",
+            "hmc.mcdir=${headlessMcMcDir.get().absolutePath.replace("\\", "\\\\")}",
             "hmc.java.versions=${javaBin.replace("\\", "\\\\")}",
             "hmc.gamedir=${runDir.absolutePath.replace("\\", "\\\\")}",
             "hmc.offline=true",
@@ -162,14 +183,15 @@ tasks.register("installHeadlessMcFabric") {
     inputs.property("minecraft_version", project.minecraft_version)
     inputs.property("loader_version", project.loader_version)
     inputs.property("java_release", java.targetCompatibility.majorVersion)
+    inputs.property("headless_mc_cache_dir", headlessMcCacheDir.map { it.absolutePath })
     outputs.file(headlessMcFabricJson)
 
     doLast {
         def dir = headlessMcDir.get().asFile
-        def homeDir = headlessMcHomeDir.get().asFile
-        def mcVersionJson = headlessMcVersionJson.get().asFile
-        def fabricVersionJson = headlessMcFabricJson.get().asFile
-        def launcher = headlessMcLauncher.get().asFile
+        def homeDir = headlessMcHomeDir.get()
+        def mcVersionJson = headlessMcVersionJson.get()
+        def fabricVersionJson = headlessMcFabricJson.get()
+        def launcher = headlessMcLauncher.get()
         homeDir.mkdirs()
         if (!mcVersionJson.isFile()) {
             exec {
@@ -198,9 +220,9 @@ tasks.register("headlessMcTest", Exec) {
 
     workingDir headlessMcDir
     commandLine "xvfb-run", "-a", javaBin,
-        "-Duser.home=${headlessMcHomeDir.get().asFile.absolutePath}",
+        "-Duser.home=${headlessMcHomeDir.get().absolutePath}",
         "-Dhmc.check.xvfb=true",
-        "-jar", headlessMcLauncher.get().asFile.absolutePath,
+        "-jar", headlessMcLauncher.get().absolutePath,
         "--command", "launch", ".*fabric.*", "-regex",
         "--jvm", "-Djava.awt.headless=true"
 }

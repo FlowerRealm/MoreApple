@@ -32,9 +32,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            build/headlessmc/headlessmc-launcher-*.jar
-            build/headlessmc/downloads
-            build/headlessmc/home/.minecraft
+            ~/.cache/moreapple/headlessmc/headlessmc-launcher-*.jar
+            ~/.cache/moreapple/headlessmc/downloads
+            ~/.cache/moreapple/headlessmc/home/.minecraft
           key: headlessmc-${{ runner.os }}-${{ hashFiles('build.gradle', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             headlessmc-${{ runner.os }}-
@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            build/headlessmc/headlessmc-launcher-*.jar
-            build/headlessmc/downloads
-            build/headlessmc/home/.minecraft
+            ~/.cache/moreapple/headlessmc/headlessmc-launcher-*.jar
+            ~/.cache/moreapple/headlessmc/downloads
+            ~/.cache/moreapple/headlessmc/home/.minecraft
           key: ${{ steps.headlessmc-cache.outputs.cache-primary-key }}
