@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "moreapple_test",
+  "version": "1.0.0",
+  "name": "More Apple Tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "com.flowerrealm.moreapple.test.MoreAppleRecipeGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.2",
+    "minecraft": "1.20.1",
+    "moreapple": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}
