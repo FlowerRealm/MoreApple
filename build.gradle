@@ -20,6 +20,13 @@ loom {
     }
 }
 
+fabricApi.configureTests {
+    createSourceSet = true
+    modId = "moreapple_test"
+    enableGameTests = false
+    enableClientGameTests = false
+}
+
 repositories {
     maven {
         name = "Fabric"
@@ -50,6 +57,7 @@ configurations {
 
 dependencies {
     headlessMcMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    headlessMcMods fabricApi.module("fabric-gametest-api-v1", project.fabric_version)
     headlessMcMods "maven.modrinth:hephaestus:${project.hephaestus_version}"
 }
 
@@ -148,12 +156,26 @@ tasks.register("prepareHeadlessMc") {
 }
 
 tasks.register("stageHeadlessMcMods", Sync) {
-    dependsOn tasks.named("remapJar"), downloadMcRuntimeTest
+    dependsOn tasks.named("remapJar"), tasks.named("remapGametestJar"), downloadMcRuntimeTest
 
     from(tasks.named("remapJar").flatMap { it.archiveFile })
+    from(tasks.named("remapGametestJar").flatMap { it.archiveFile })
     from(configurations.headlessMcMods)
     from(mcRuntimeTestJar)
     into(headlessMcModsDir)
+}
+
+tasks.register("gametestJar", Jar) {
+    archiveClassifier = "gametest-dev"
+    from(sourceSets.gametest.output)
+}
+
+tasks.register("remapGametestJar", net.fabricmc.loom.task.RemapJarTask) {
+    dependsOn tasks.named("gametestJar")
+    inputFile.set(tasks.named("gametestJar", Jar).flatMap { it.archiveFile })
+    archiveClassifier = "gametest"
+    addNestedDependencies = false
+    classpath.from(sourceSets.gametest.compileClasspath)
 }
 
 tasks.register("installHeadlessMcFabric") {
@@ -192,7 +214,7 @@ tasks.register("installHeadlessMcFabric") {
 
 tasks.register("headlessMcTest", Exec) {
     group = "verification"
-    description = "Starts Minecraft with HeadlessMC and verifies that More Apple loads."
+    description = "Starts Minecraft with HeadlessMC and verifies that More Apple's GameTests pass."
 
     dependsOn tasks.named("installHeadlessMcFabric"), tasks.named("stageHeadlessMcMods")
 
@@ -202,7 +224,9 @@ tasks.register("headlessMcTest", Exec) {
         "-Dhmc.check.xvfb=true",
         "-jar", headlessMcLauncher.get().asFile.absolutePath,
         "--command", "launch", ".*fabric.*", "-regex",
-        "--jvm", "-Djava.awt.headless=true"
+        "--jvm", "-Djava.awt.headless=true",
+        "--jvm", "-DMcRuntimeGameTest=true",
+        "--jvm", "-DMcRuntimeGameTestMinExpectedGameTests=1"
 }
 
 tasks.named("check") {
