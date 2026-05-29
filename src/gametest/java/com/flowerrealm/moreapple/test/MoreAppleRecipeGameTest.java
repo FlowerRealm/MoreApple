@@ -1,11 +1,15 @@
 package com.flowerrealm.moreapple.test;
 
+import com.flowerrealm.moreapple.apple.AppleModifiers;
+import com.flowerrealm.moreapple.apple.AppleStack;
+import com.flowerrealm.moreapple.item.MoreAppleItems;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Set;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.registry.Registries;
@@ -23,8 +27,7 @@ public final class MoreAppleRecipeGameTest implements FabricGameTest {
     private static final Set<Identifier> REMOVED_RECIPE_IDS = Set.of(
         GOLDEN_APPLE_ID,
         ENCHANTED_GOLDEN_APPLE_ID,
-        MOJANG_BANNER_PATTERN_ID,
-        TCONSTRUCT_GOLDEN_APPLE_CASTING_ID
+        MOJANG_BANNER_PATTERN_ID
     );
 
     private static final Set<Identifier> COVERED_CHEST_LOOT_TABLES = Set.of(
@@ -46,6 +49,7 @@ public final class MoreAppleRecipeGameTest implements FabricGameTest {
     public void vanillaGoldenApplesAreNotSurvivalObtainable(TestContext context) {
         assertItemsStayRegistered(context);
         assertRecipesDoNotCreateGoldenApples(context);
+        assertTconstructCastingCreatesGoldenMoreApple(context);
         assertCoveredLootTablesDoNotContainGoldenApples(context);
         assertPiglinsDoNotLoveGoldenApples(context);
         context.complete();
@@ -69,6 +73,21 @@ public final class MoreAppleRecipeGameTest implements FabricGameTest {
             context.assertFalse(output.isOf(Items.GOLDEN_APPLE), recipe.getId() + " should not create golden apples");
             context.assertFalse(output.isOf(Items.ENCHANTED_GOLDEN_APPLE), recipe.getId() + " should not create enchanted golden apples");
         }
+    }
+
+    private static void assertTconstructCastingCreatesGoldenMoreApple(TestContext context) {
+        var recipes = context.getWorld().getRecipeManager();
+        Recipe<?> recipe = recipes.get(TCONSTRUCT_GOLDEN_APPLE_CASTING_ID).orElseThrow(() ->
+            new AssertionError(TCONSTRUCT_GOLDEN_APPLE_CASTING_ID + " recipe should exist")
+        );
+        ItemStack output = recipe.getOutput(context.getWorld().getRegistryManager());
+        AppleStack apple = AppleStack.from(output);
+
+        context.assertTrue(output.isOf(MoreAppleItems.APPLE), "TConstruct casting should output moreapple:apple");
+        context.assertTrue(
+            apple.level(AppleModifiers.GOLDEN.id()) == 1,
+            "TConstruct casting output should have golden level 1"
+        );
     }
 
     private static void assertCoveredLootTablesDoNotContainGoldenApples(TestContext context) {

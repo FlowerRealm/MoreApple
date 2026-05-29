@@ -4,8 +4,12 @@ import com.flowerrealm.moreapple.MoreApple;
 import com.flowerrealm.moreapple.apple.AppleProcessing;
 import com.flowerrealm.moreapple.apple.AppleStack;
 import com.flowerrealm.moreapple.apple.AppleModifiers;
+import com.flowerrealm.moreapple.item.AppleItem;
 import com.flowerrealm.moreapple.item.MoreAppleItems;
+import com.mojang.datafixers.util.Pair;
+import net.minecraft.entity.effect.StatusEffectInstance;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
@@ -105,6 +109,42 @@ public final class MoreAppleAppleGameTest implements FabricGameTest {
             AppleStack.from(enchanted).level(AppleModifiers.ENCHANTED.id()) == 1,
             "legacy enchanted apple definition should map to enchanted modifier"
         );
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void goldenAppleModifierEatsLikeVanillaGoldenApple(TestContext context) {
+        PlayerEntity player = context.createMockSurvivalPlayer();
+        player.getHungerManager().setFoodLevel(10);
+        player.getHungerManager().setSaturationLevel(0.0F);
+
+        ItemStack stack = AppleProcessing.applyModifier(MoreAppleItems.appleStack(), AppleModifiers.GOLDEN.id(), 1).stack();
+        int expectedFood = Math.min(20, 10 + AppleItem.GOLDEN_FOOD.getHunger());
+        float expectedSaturation = Math.min(
+            expectedFood,
+            AppleItem.GOLDEN_FOOD.getHunger() * AppleItem.GOLDEN_FOOD.getSaturationModifier() * 2.0F
+        );
+
+        MoreAppleItems.APPLE.finishUsing(stack, context.getWorld(), player);
+
+        context.assertTrue(stack.getCount() == 0, "golden MoreApple apple should be consumed");
+        context.assertTrue(player.getHungerManager().getFoodLevel() == expectedFood, "golden apple food level should apply");
+        context.assertTrue(
+            Float.compare(player.getHungerManager().getSaturationLevel(), expectedSaturation) == 0,
+            "golden apple saturation should apply"
+        );
+        for (Pair<StatusEffectInstance, Float> effect : AppleItem.GOLDEN_FOOD.getStatusEffects()) {
+            StatusEffectInstance active = player.getStatusEffect(effect.getFirst().getEffectType());
+            context.assertTrue(active != null, "golden apple effect should be present: " + effect.getFirst().getEffectType());
+            context.assertTrue(
+                active.getDuration() == effect.getFirst().getDuration(),
+                "golden apple effect duration should match vanilla"
+            );
+            context.assertTrue(
+                active.getAmplifier() == effect.getFirst().getAmplifier(),
+                "golden apple effect amplifier should match vanilla"
+            );
+        }
         context.complete();
     }
 
