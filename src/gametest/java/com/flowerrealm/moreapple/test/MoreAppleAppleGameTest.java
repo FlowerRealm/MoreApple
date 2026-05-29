@@ -15,6 +15,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
+import net.minecraft.util.Hand;
 
 public final class MoreAppleAppleGameTest implements FabricGameTest {
     @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
@@ -119,12 +120,17 @@ public final class MoreAppleAppleGameTest implements FabricGameTest {
         player.getHungerManager().setSaturationLevel(0.0F);
 
         ItemStack stack = AppleProcessing.applyModifier(MoreAppleItems.appleStack(), AppleModifiers.GOLDEN.id(), 1).stack();
+        player.setStackInHand(Hand.MAIN_HAND, stack);
         int expectedFood = Math.min(20, 10 + AppleItem.GOLDEN_FOOD.getHunger());
         float expectedSaturation = Math.min(
             expectedFood,
             AppleItem.GOLDEN_FOOD.getHunger() * AppleItem.GOLDEN_FOOD.getSaturationModifier() * 2.0F
         );
 
+        context.assertTrue(
+            MoreAppleItems.APPLE.use(context.getWorld(), player, Hand.MAIN_HAND).getResult().isAccepted(),
+            "golden MoreApple apple should start eating when hungry"
+        );
         MoreAppleItems.APPLE.finishUsing(stack, context.getWorld(), player);
 
         context.assertTrue(stack.getCount() == 0, "golden MoreApple apple should be consumed");
@@ -145,6 +151,28 @@ public final class MoreAppleAppleGameTest implements FabricGameTest {
                 "golden apple effect amplifier should match vanilla"
             );
         }
+        context.complete();
+    }
+
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE)
+    public void goldenAppleModifierIsEdibleAtFullHunger(TestContext context) {
+        PlayerEntity player = context.createMockSurvivalPlayer();
+        player.getHungerManager().setFoodLevel(20);
+        player.getHungerManager().setSaturationLevel(5.0F);
+
+        ItemStack golden = AppleProcessing.applyModifier(MoreAppleItems.appleStack(), AppleModifiers.GOLDEN.id(), 1).stack();
+        ItemStack normal = MoreAppleItems.appleStack();
+        player.setStackInHand(Hand.MAIN_HAND, golden);
+        player.setStackInHand(Hand.OFF_HAND, normal);
+
+        context.assertTrue(
+            MoreAppleItems.APPLE.use(context.getWorld(), player, Hand.MAIN_HAND).getResult().isAccepted(),
+            "golden MoreApple apple should be edible at full hunger"
+        );
+        context.assertFalse(
+            MoreAppleItems.APPLE.use(context.getWorld(), player, Hand.OFF_HAND).getResult().isAccepted(),
+            "plain MoreApple apple should not be edible at full hunger"
+        );
         context.complete();
     }
 
