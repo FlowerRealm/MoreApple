@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>More Apple 加工流程模型</title>
+  <style>
+    body { margin: 0; background: #f6f7f4; color: #1f2723; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.65; }
+    main { width: min(1040px, calc(100% - 36px)); margin: 0 auto; padding: 38px 0 56px; }
+    header { border-bottom: 1px solid #d8ded7; margin-bottom: 28px; padding-bottom: 18px; }
+    h1 { margin: 0 0 10px; font-size: 34px; line-height: 1.15; letter-spacing: 0; }
+    h2 { margin: 30px 0 12px; font-size: 22px; letter-spacing: 0; }
+    p { margin: 0 0 12px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d8ded7; border-radius: 8px; overflow: hidden; }
+    th, td { border-bottom: 1px solid #d8ded7; padding: 11px 12px; text-align: left; vertical-align: top; }
+    th { background: #eef2ed; }
+    tr:last-child td { border-bottom: 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { background: #eef2ee; border-radius: 4px; padding: 1px 5px; }
+    pre { background: #202923; color: #edf4ef; border-radius: 8px; padding: 14px; overflow-x: auto; }
+    .lead { color: #66736c; max-width: 820px; font-size: 17px; }
+    .note { border-left: 4px solid #2f6f55; background: #edf4ef; padding: 12px 14px; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>More Apple 加工流程模型</h1>
+      <p class="lead">本轮实现加工核心能力，不实现调用入口。配方、GUI、命令、匠魂台以后都可以调用同一个服务。</p>
+    </header>
+    <section>
+      <h2>核心结构</h2>
+      <pre><code>moreapple:apple
+└─ MoreApple
+   ├─ SchemaVersion: 1
+   └─ Modifiers
+      ├─ { Id: "moreapple:golden", Level: 1 }
+      └─ { Id: "moreapple:healing", Level: 2 }</code></pre>
+      <div class="note">没有“最多 3 个 upgrade”限制。底层只限制单个属性自己的 maxLevel 和互斥组。</div>
+    </section>
+    <section>
+      <h2>字段与取舍</h2>
+      <table>
+        <thead><tr><th>字段</th><th>用途</th><th>取舍</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>属性身份。</td><td>支持扩展；必须处理未知 id。</td></tr>
+          <tr><td><code>level</code></td><td>属性等级。</td><td>升级改等级，不重复塞多个同名属性。</td></tr>
+          <tr><td><code>maxLevel</code></td><td>单属性上限。</td><td>限制单属性，不限制总属性数。</td></tr>
+          <tr><td><code>exclusiveGroup</code></td><td>互斥组。</td><td>把冲突规则数据化，少写 if/else。</td></tr>
+          <tr><td><code>priority</code></td><td>未来显示和结算顺序。</td><td>稳定排序，别靠 NBT 顺序碰运气。</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

@@ -6,6 +6,7 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
+      "com.flowerrealm.moreapple.test.MoreAppleAppleGameTest",
       "com.flowerrealm.moreapple.test.MoreAppleRecipeGameTest"
     ]
   },
