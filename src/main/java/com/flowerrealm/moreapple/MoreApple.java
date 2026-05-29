@@ -1,5 +1,7 @@
 package com.flowerrealm.moreapple;
 
+import com.flowerrealm.moreapple.apple.AppleModifiers;
+import com.flowerrealm.moreapple.item.MoreAppleItems;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
@@ -15,7 +17,13 @@ public final class MoreApple implements ModInitializer {
     @Override
     public void onInitialize() {
         registerBuiltinDataPacks();
+        AppleModifiers.registerAll();
+        MoreAppleItems.registerAll();
         LOGGER.info("More Apple initialized");
+    }
+
+    public static Identifier id(String path) {
+        return new Identifier(MOD_ID, path);
     }
 
     private static void registerBuiltinDataPacks() {
