@@ -2,5 +2,13 @@
   "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "minecraft:item/apple"
-  }
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "moreapple:golden": 1.0
+      },
+      "model": "moreapple:item/golden_apple"
+    }
+  ]
 }

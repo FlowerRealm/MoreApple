@@ -16,6 +16,7 @@ loom {
     mods {
         moreapple {
             sourceSet sourceSets.main
+            sourceSet sourceSets.client
         }
     }
 }

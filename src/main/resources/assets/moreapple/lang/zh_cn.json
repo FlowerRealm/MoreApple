@@ -1,4 +1,11 @@
 {
   "item.moreapple.apple": "苹果",
+  "item.moreapple.apple.with_base_modifier": "%s苹果",
+  "modifier.moreapple.enchanted": "附魔",
+  "modifier.moreapple.enchanted.name_fragment": "附魔金",
+  "modifier.moreapple.fire_resistance": "抗火",
+  "modifier.moreapple.golden": "熔金",
+  "modifier.moreapple.golden.name_fragment": "金",
+  "modifier.moreapple.healing": "治疗",
   "modmenu.descriptionTranslation.moreapple": "基于 Hephaestus 的苹果扩展 Fabric mod 底座。"
 }

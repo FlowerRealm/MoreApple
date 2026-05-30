@@ -7,7 +7,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
 public final class MoreAppleItems {
-    public static final AppleItem APPLE = register("apple", new AppleItem(new Item.Settings().maxCount(64)));
+    public static final AppleItem APPLE = register("apple", new AppleItem(new Item.Settings().maxCount(64).food(AppleItem.BASE_FOOD)));
 
     private MoreAppleItems() {
     }

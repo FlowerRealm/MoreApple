@@ -1,13 +1,16 @@
 {
-  "fabric:load_conditions": [
-    {
-      "condition": "fabric:not",
-      "value": {
-        "condition": "fabric:all_mods_loaded",
-        "values": [
-          "minecraft"
-        ]
-      }
-    }
-  ]
+  "type": "tconstruct:casting_table",
+  "cast": {
+    "item": "minecraft:apple"
+  },
+  "cast_consumed": true,
+  "fluid": {
+    "tag": "c:molten_gold",
+    "amount": 72000
+  },
+  "result": {
+    "item": "moreapple:apple",
+    "nbt": "{MoreApple:{SchemaVersion:1,Modifiers:[{Id:\"moreapple:golden\",Level:1}]}}"
+  },
+  "cooling_time": 161
 }

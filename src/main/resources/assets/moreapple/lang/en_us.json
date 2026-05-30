@@ -1,4 +1,11 @@
 {
   "item.moreapple.apple": "Apple",
+  "item.moreapple.apple.with_base_modifier": "%s Apple",
+  "modifier.moreapple.enchanted": "Enchanted",
+  "modifier.moreapple.enchanted.name_fragment": "Enchanted Golden",
+  "modifier.moreapple.fire_resistance": "Fire Resistance",
+  "modifier.moreapple.golden": "Molten Gold",
+  "modifier.moreapple.golden.name_fragment": "Golden",
+  "modifier.moreapple.healing": "Healing",
   "modmenu.descriptionTranslation.moreapple": "A Fabric mod foundation for apple extensions built on Hephaestus."
 }
